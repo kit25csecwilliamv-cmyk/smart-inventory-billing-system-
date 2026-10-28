@@ -1,129 +1,94 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Inventory & Billing</title>
-    <link rel="stylesheet" href="./styles.css">
+    <title>Smart Inventory & Billing System</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <aside class="sidebar">
-        <h2>📦 SmartStock</h2>
-        <p class="sub">INVENTORY MANAGEMENT</p>
-        <a href="#dashboard">🏠 Dashboard</a>
-        <a href="#inventory">📦 Inventory</a>
-        <a href="#billing">🧾 Billing</a>
-        <p class="sidebar-note">Smart Inventory System</p>
-    </aside>
 
-    <main class="main">
-        <header>
-            <div>
-                <h1>Smart Inventory</h1>
-                <p>Manage your products and billing in one place.</p>
-            </div>
-            <span class="status">● System Online</span>
-        </header>
+    <header>
+        <h1>Smart Inventory & Billing System</h1>
+        <p>Manage products, generate bills, and share through WhatsApp</p>
+    </header>
 
-        <section id="dashboard">
-            <h2>Dashboard Overview</h2>
-            <div class="stats">
-                <article class="stat">
-                    <span>Total Products</span>
-                    <strong id="totalProducts">0</strong>
-                </article>
-                <article class="stat">
-                    <span>Total Stock Units</span>
-                    <strong id="totalStock">0</strong>
-                </article>
-                <article class="stat">
-                    <span>Inventory Value</span>
-                    <strong id="inventoryValue">₹0.00</strong>
-                </article>
-                <article class="stat">
-                    <span>Total Sales</span>
-                    <strong id="totalSales">₹0.00</strong>
-                </article>
-            </div>
-        </section>
+    <main>
+        <section class="card">
+            <h2>Add Product</h2>
 
-        <section id="inventory" class="panel">
-            <div class="section-heading">
-                <h2>Product Inventory</h2>
-                <input id="search" placeholder="Search products..." type="search">
-            </div>
+            <form id="productForm">
+                <input type="text" id="productName"
+                       placeholder="Product Name" required>
 
-            <form id="productForm" class="product-form">
-                <input id="productName" placeholder="Product name" required>
-                <input id="category" placeholder="Category" required>
-                <input id="price" type="number" placeholder="Price (₹)"
-                       min="0.01" step="0.01" required>
-                <input id="stock" type="number" placeholder="Stock"
-                       min="0" step="1" required>
-                <button type="submit">+ Add Product</button>
+                <input type="number" id="productPrice"
+                       placeholder="Price (₹)" min="0.01" step="0.01" required>
+
+                <input type="number" id="productStock"
+                       placeholder="Stock Quantity" min="0" step="1" required>
+
+                <button type="submit">Add Product</button>
             </form>
 
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Category</th>
-                            <th>Price</th>
-                            <th>Stock</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="productList"></tbody>
-                </table>
-            </div>
-            <p id="emptyInventory" class="empty">No products yet. Add your first product above.</p>
+            <h2>Available Inventory</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryList"></tbody>
+            </table>
         </section>
 
-        <section id="billing" class="panel">
-            <h2>Create a Bill</h2>
-            <form id="billingForm" class="billing-form">
-                <label>
-                    Select Product
-                    <select id="billProduct" required></select>
-                </label>
-                <label>
-                    Quantity
-                    <input id="billQuantity" type="number" min="1"
-                           step="1" value="1" required>
-                </label>
-                <button type="submit">Add to Bill</button>
-            </form>
+        <section class="card">
+            <h2>Generate Customer Bill</h2>
 
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Price</th>
-                            <th>Quantity</th>
-                            <th>Subtotal</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cartList"></tbody>
-                </table>
+            <input type="text" id="customerName"
+                   placeholder="Customer Name">
+
+            <input type="tel" id="customerPhone"
+                   placeholder="WhatsApp Number with Country Code">
+
+            <div class="product-row">
+                <select id="productSelect"></select>
+                <input type="number" id="quantity"
+                       min="1" step="1" value="1">
+                <button type="button" id="addItem">Add Item</button>
             </div>
 
-            <div class="bill-footer">
-                <h3>Total: <span id="billTotal">₹0.00</span></h3>
-                <button id="checkout" type="button">Complete Sale</button>
-                <button id="clearCart" class="secondary" type="button">
-                    Clear Bill
-                </button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Qty</th>
+                        <th>Total</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="billItems"></tbody>
+            </table>
+
+            <div class="total">
+                <h3>Grand Total: <span id="grandTotal">₹0.00</span></h3>
             </div>
-            <p id="message" role="status"></p>
+
+            <div class="buttons">
+                <button id="generateBill">Generate Bill</button>
+                <button id="printBill">Print / Save PDF</button>
+                <button id="whatsappBill">Share on WhatsApp</button>
+            </div>
+
+            <div id="billPreview"></div>
         </section>
-
-        <footer>SmartStock © 2026 | Smart Inventory & Billing System</footer>
     </main>
 
-    <script src="./app.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
+```
