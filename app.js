@@ -1,207 +1,102 @@
+```javascript
+const STORAGE_KEY = "smartInventoryProducts";
+const INVOICE_KEY = "smartInventoryInvoice";
+
+let products = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || [
+    { id: 1, name: "LED Bulb", price: 120, stock: 40 },
+    { id: 2, name: "Copper Wire", price: 35, stock: 100 },
+    { id: 3, name: "Switch", price: 85, stock: 30 },
+    { id: 4, name: "Ceiling Fan", price: 1850, stock: 8 }
+];
+
+let cart = [];
+let currentBill = null;
 
 const $ = id => document.getElementById(id);
 
-function loadData(key, fallback) {
-    try {
-        const value = JSON.parse(localStorage.getItem(key));
-        return Array.isArray(fallback) && !Array.isArray(value)
-            ? fallback : value ?? fallback;
-    } catch {
-        return fallback;
-    }
-}
+const money = amount =>
+    "₹" + Number(amount).toFixed(2);
 
-let inventory = loadData("smartStockProducts", []);
-let cart = [];
-let totalSales = Number(localStorage.getItem("smartStockSales")) || 0;
-
-function saveData() {
-    localStorage.setItem("smartStockProducts", JSON.stringify(inventory));
-    localStorage.setItem("smartStockSales", String(totalSales));
-}
-
-function money(amount) {
-    return "₹" + amount.toFixed(2);
-}
-
-function makeCell(row, text) {
-    const cell = document.createElement("td");
-    cell.textContent = text;
-    row.appendChild(cell);
-    return cell;
+function saveProducts() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
 }
 
 function renderInventory() {
-    const list = $("productList");
-    const search = $("search").value.toLowerCase();
+    $("inventoryList").innerHTML = products.map(product => `
+        <tr>
+            <td>${escapeHTML(product.name)}</td>
+            <td>${money(product.price)}</td>
+            <td>${product.stock}</td>
+        </tr>
+    `).join("");
 
-    list.replaceChildren();
+    const available = products.filter(product => product.stock > 0);
 
-    const filtered = inventory.filter(product =>
-        (product.name + " " + product.category)
-            .toLowerCase().includes(search)
-    );
-
-    filtered.forEach(product => {
-        const row = document.createElement("tr");
-        makeCell(row, product.name);
-        makeCell(row, product.category);
-        makeCell(row, money(product.price));
-        makeCell(row, String(product.stock));
-
-        const action = makeCell(row, "");
-        const button = document.createElement("button");
-        button.className = "delete-btn";
-        button.textContent = "Delete";
-
-        button.addEventListener("click", () => {
-            if (cart.some(item => item.id === product.id)) {
-                showMessage("Remove this product from the bill first.", true);
-                return;
-            }
-
-            inventory = inventory.filter(item => item.id !== product.id);
-            saveData();
-            renderAll();
-        });
-
-        action.appendChild(button);
-        list.appendChild(row);
-    });
-
-    $("emptyInventory").hidden = filtered.length > 0;
-    $("totalProducts").textContent = inventory.length;
-    $("totalStock").textContent = inventory.reduce(
-        (sum, item) => sum + item.stock, 0
-    );
-    $("inventoryValue").textContent = money(inventory.reduce(
-        (sum, item) => sum + item.price * item.stock, 0
-    ));
-    $("totalSales").textContent = money(totalSales);
-
-    renderProductOptions();
+    $("productSelect").innerHTML = available.map(product => `
+        <option value="${product.id}">
+            ${escapeHTML(product.name)} - ${money(product.price)}
+            (Stock: ${product.stock})
+        </option>
+    `).join("") || `<option value="">No stock available</option>`;
 }
 
-function renderProductOptions() {
-    const select = $("billProduct");
-    const previous = select.value;
-
-    select.replaceChildren();
-
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Select a product";
-    select.appendChild(placeholder);
-
-    inventory.filter(item => item.stock > 0).forEach(item => {
-        const option = document.createElement("option");
-        option.value = item.id;
-        option.textContent =
-            `${item.name} — ${money(item.price)} (${item.stock} available)`;
-        select.appendChild(option);
-    });
-
-    if ([...select.options].some(option => option.value === previous)) {
-        select.value = previous;
-    }
-}
-
-function renderCart() {
-    const list = $("cartList");
-    list.replaceChildren();
-
-    cart.forEach(item => {
-        const row = document.createElement("tr");
-        makeCell(row, item.name);
-        makeCell(row, money(item.price));
-        makeCell(row, String(item.quantity));
-        makeCell(row, money(item.price * item.quantity));
-
-        const action = makeCell(row, "");
-        const button = document.createElement("button");
-        button.className = "delete-btn";
-        button.textContent = "Remove";
-
-        button.addEventListener("click", () => {
-            cart = cart.filter(entry => entry.id !== item.id);
-            renderCart();
-            renderProductOptions();
-            showMessage("");
-        });
-
-        action.appendChild(button);
-        list.appendChild(row);
-    });
-
-    const total = cart.reduce(
-        (sum, item) => sum + item.price * item.quantity, 0
-    );
-
-    $("billTotal").textContent = money(total);
-}
-
-function renderAll() {
-    renderInventory();
-    renderCart();
-}
-
-function showMessage(message, error = false) {
-    $("message").textContent = message;
-    $("message").style.color = error ? "#b91c1c" : "#15803d";
+function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[char]);
 }
 
 $("productForm").addEventListener("submit", event => {
     event.preventDefault();
 
     const name = $("productName").value.trim();
-    const category = $("category").value.trim();
-    const price = Number($("price").value);
-    const stock = Number($("stock").value);
+    const price = Number($("productPrice").value);
+    const stock = Number($("productStock").value);
 
-    if (!name || !category || !Number.isFinite(price) ||
-        price <= 0 || !Number.isSafeInteger(stock) || stock < 0) {
-        showMessage("Enter valid product details.", true);
+    if (!name || !Number.isFinite(price) || price <= 0 ||
+        !Number.isInteger(stock) || stock < 0) {
+        alert("Enter valid product details.");
         return;
     }
 
-    inventory.push({
-        id: crypto.randomUUID(),
+    products.push({
+        id: Date.now(),
         name,
-        category,
         price,
         stock
     });
 
-    saveData();
-    renderAll();
+    saveProducts();
+    renderInventory();
     event.target.reset();
-    showMessage("Product added successfully.");
+
+    alert("Product added successfully.");
 });
 
-$("search").addEventListener("input", renderInventory);
+$("addItem").addEventListener("click", () => {
+    const id = Number($("productSelect").value);
+    const product = products.find(item => item.id === id);
+    const quantity = Number($("quantity").value);
 
-$("billingForm").addEventListener("submit", event => {
-    event.preventDefault();
-
-    const id = $("billProduct").value;
-    const quantity = Number($("billQuantity").value);
-    const product = inventory.find(item => item.id === id);
-
-    if (!product || !Number.isSafeInteger(quantity) || quantity < 1) {
-        showMessage("Select a product and enter a valid quantity.", true);
+    if (!product || !Number.isInteger(quantity) || quantity < 1) {
+        alert("Select a product and enter a valid quantity.");
         return;
     }
 
     const existing = cart.find(item => item.id === id);
-    const alreadyAdded = existing ? existing.quantity : 0;
+    const newQuantity = quantity + (existing ? existing.quantity : 0);
 
-    if (quantity + alreadyAdded > product.stock) {
-        showMessage("Quantity exceeds available stock.", true);
+    if (newQuantity > product.stock) {
+        alert(`Only ${product.stock} unit(s) are available.`);
         return;
     }
 
     if (existing) {
-        existing.quantity += quantity;
+        existing.quantity = newQuantity;
     } else {
         cart.push({
             id: product.id,
@@ -212,22 +107,50 @@ $("billingForm").addEventListener("submit", event => {
     }
 
     renderCart();
-    renderProductOptions();
-    showMessage("Product added to bill.");
 });
 
-$("checkout").addEventListener("click", () => {
+function renderCart() {
+    $("billItems").innerHTML = cart.map(item => `
+        <tr>
+            <td>${escapeHTML(item.name)}</td>
+            <td>${money(item.price)}</td>
+            <td>${item.quantity}</td>
+            <td>${money(item.price * item.quantity)}</td>
+            <td>
+                <button class="remove-item"
+                    data-remove="${item.id}" type="button">×</button>
+            </td>
+        </tr>
+    `).join("");
+
+    const total = cart.reduce(
+        (sum, item) => sum + item.price * item.quantity, 0
+    );
+
+    $("grandTotal").textContent = money(total);
+    currentBill = null;
+    $("billPreview").innerHTML = "";
+}
+
+$("billItems").addEventListener("click", event => {
+    const button = event.target.closest("[data-remove]");
+    if (!button) return;
+
+    cart = cart.filter(item => item.id !== Number(button.dataset.remove));
+    renderCart();
+});
+
+$("generateBill").addEventListener("click", () => {
     if (cart.length === 0) {
-        showMessage("Add products to the bill first.", true);
+        alert("Add at least one product to the bill.");
         return;
     }
 
-    // Validate stock again before completing the sale.
     for (const item of cart) {
-        const product = inventory.find(entry => entry.id === item.id);
+        const product = products.find(p => p.id === item.id);
 
-        if (!product || product.stock < item.quantity) {
-            showMessage("Insufficient stock. Please update your bill.", true);
+        if (!product || item.quantity > product.stock) {
+            alert(`Please check stock for ${item.name}.`);
             return;
         }
     }
@@ -236,24 +159,93 @@ $("checkout").addEventListener("click", () => {
         (sum, item) => sum + item.price * item.quantity, 0
     );
 
-    inventory.forEach(product => {
-        const sold = cart.find(item => item.id === product.id);
-        if (sold) product.stock -= sold.quantity;
-    });
+    currentBill = {
+        number: "INV-" + Date.now(),
+        date: new Date().toLocaleString("en-IN"),
+        customer: $("customerName").value.trim() || "Walk-in Customer",
+        phone: $("customerPhone").value.trim(),
+        items: cart.map(item => ({ ...item })),
+        total
+    };
 
-    totalSales += total;
-    cart = [];
+    $("billPreview").innerHTML = `
+        <div class="invoice">
+            <h2>INVOICE</h2>
+            <p><b>Invoice No:</b> ${escapeHTML(currentBill.number)}</p>
+            <p><b>Date:</b> ${escapeHTML(currentBill.date)}</p>
+            <p><b>Customer:</b> ${escapeHTML(currentBill.customer)}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Qty</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${currentBill.items.map(item => `
+                        <tr>
+                            <td>${escapeHTML(item.name)}</td>
+                            <td>${money(item.price)}</td>
+                            <td>${item.quantity}</td>
+                            <td>${money(item.price * item.quantity)}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+            <h3>Grand Total: ${money(currentBill.total)}</h3>
+            <p>Thank you for your purchase!</p>
+        </div>
+    `;
 
-    saveData();
-    renderAll();
-    showMessage("Sale completed! Total: " + money(total));
+    localStorage.setItem(INVOICE_KEY, JSON.stringify(currentBill));
+    alert("Bill generated successfully.");
 });
 
-$("clearCart").addEventListener("click", () => {
-    cart = [];
-    renderCart();
-    renderProductOptions();
-    showMessage("Bill cleared.");
+$("printBill").addEventListener("click", () => {
+    if (!currentBill) {
+        alert("Generate the bill first.");
+        return;
+    }
+
+    window.print();
 });
 
-renderAll();
+$("whatsappBill").addEventListener("click", () => {
+    if (!currentBill) {
+        alert("Generate the bill first.");
+        return;
+    }
+
+    const phone = $("customerPhone").value.replace(/\D/g, "");
+
+    if (phone.length < 8 || phone.length > 15) {
+        alert("Enter a valid WhatsApp number with country code, e.g. 91XXXXXXXXXX.");
+        return;
+    }
+
+    const message = [
+        `*INVOICE ${currentBill.number}*`,
+        `Date: ${currentBill.date}`,
+        `Customer: ${currentBill.customer}`,
+        "",
+        "*Products:*",
+        ...currentBill.items.map(item =>
+            `${item.name} - ${item.quantity} x ${money(item.price)} = ${money(item.price * item.quantity)}`
+        ),
+        "",
+        `*Grand Total: ${money(currentBill.total)}*`,
+        "",
+        "Thank you for your purchase!"
+    ].join("\n");
+
+    const url =
+        "https://wa.me/" + phone + "?text=" + encodeURIComponent(message);
+
+    window.open(url, "_blank", "noopener,noreferrer");
+});
+
+renderInventory();
+renderCart();
+```
